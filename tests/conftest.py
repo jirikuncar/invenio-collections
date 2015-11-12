@@ -22,23 +22,46 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-include .dockerignore
-include .editorconfig
-include .tx/config
-include *.rst
-include *.sh
-include *.txt
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include examples *.py
-recursive-include invenio_collections *.html
-recursive-include tests *.py
 
-# added by check_manifest.py
-recursive-include invenio_collections *.po
-recursive-include invenio_collections *.pot
+"""Pytest configuration."""
+
+from __future__ import absolute_import, print_function
+
+import pytest
+import os
+
+from flask import Flask
+from flask_menu import Menu as FlaskMenu
+from flask.ext import breadcrumbs
+from flask_cli import FlaskCLI
+
+from invenio_db import InvenioDB, db
+from invenio_collections.views import blueprint
+
+
+@pytest.fixture()
+def app(request):
+    """Flask application fixture."""
+    app = Flask('testapp')
+    FlaskMenu(app)
+    FlaskCLI(app)
+    breadcrumbs.Breadcrumbs(app=app)
+    InvenioDB(app)
+    app.config.update(
+        TESTING=True,
+        SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI',
+                                          'sqlite://'),
+    )
+
+    app.register_blueprint(blueprint)
+
+    def teardown():
+        with app.app_context():
+            db.drop_all()
+
+    request.addfinalizer(teardown)
+
+    with app.app_context():
+        db.create_all()
+
+    return app

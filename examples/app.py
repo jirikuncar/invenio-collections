@@ -22,23 +22,43 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-include .dockerignore
-include .editorconfig
-include .tx/config
-include *.rst
-include *.sh
-include *.txt
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include examples *.py
-recursive-include invenio_collections *.html
-recursive-include tests *.py
 
-# added by check_manifest.py
-recursive-include invenio_collections *.po
-recursive-include invenio_collections *.pot
+"""Minimal Flask application example for development.
+
+Run example development server:
+
+.. code-block:: console
+
+   $ cd examples
+   $ python app.py
+"""
+
+from __future__ import absolute_import, print_function
+
+import os
+
+from flask import Flask
+from flask_babelex import Babel
+from flask_menu import Menu as FlaskMenu
+from flask.ext import breadcrumbs
+from flask_cli import FlaskCLI
+
+from invenio_db import InvenioDB
+from invenio_collections import InvenioCollections
+
+# Create Flask application
+app = Flask(__name__)
+Babel(app)
+InvenioCollections(app)
+FlaskMenu(app)
+FlaskCLI(app)
+breadcrumbs.Breadcrumbs(app=app)
+InvenioDB(app)
+app.config.update(
+    TESTING=True,
+    SQLALCHEMY_DATABASE_URI=os.getenv('SQLALCHEMY_DATABASE_URI',
+                                      'sqlite://'),
+)
+
+if __name__ == "__main__":
+    app.run()

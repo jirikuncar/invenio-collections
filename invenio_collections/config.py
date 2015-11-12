@@ -17,8 +17,23 @@
 # along with Invenio; if not, write to the Free Software Foundation, Inc.,
 # 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
 
-_collections:
-    """List of static and dynamic collections to which record belongs to."""
-    calculated:
-        @memoize()
-        get_record_collections(self)
+"""Invenio Collections configuration."""
+
+from __future__ import unicode_literals
+
+import pkg_resources
+
+COLLECTIONS_QUERY_PARSER = 'invenio_query_parser.parser:Main'
+
+COLLECTIONS_QUERY_WALKERS = [
+    'invenio_query_parser.walkers.pypeg_to_ast:PypegConverter',
+]
+
+try:
+    pkg_resources.get_distribution('invenio_search')
+
+    from invenio_search.config import \
+        SEARCH_QUERY_PARSER as COLLECTIONS_QUERY_PARSER, \
+        SEARCH_QUERY_WALKERS as COLLECTIONS_QUERY_WALKERS
+except pkg_resources.DistributionNotFound:  # pragma: no cover
+    pass

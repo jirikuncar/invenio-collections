@@ -22,23 +22,9 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-include .dockerignore
-include .editorconfig
-include .tx/config
-include *.rst
-include *.sh
-include *.txt
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include examples *.py
-recursive-include invenio_collections *.html
-recursive-include tests *.py
 
-# added by check_manifest.py
-recursive-include invenio_collections *.po
-recursive-include invenio_collections *.pot
+pep257 invenio_collections && \
+check-manifest --ignore ".travis-*" && \
+sphinx-build -qnNW docs docs/_build/html && \
+python setup.py test && \
+sphinx-build -qnNW -b doctest docs docs/_build/doctest

@@ -22,23 +22,32 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-include .dockerignore
-include .editorconfig
-include .tx/config
-include *.rst
-include *.sh
-include *.txt
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include examples *.py
-recursive-include invenio_collections *.html
-recursive-include tests *.py
+"""Invenio module for organizing metadata into collections."""
 
-# added by check_manifest.py
-recursive-include invenio_collections *.po
-recursive-include invenio_collections *.pot
+from __future__ import absolute_import, print_function
+
+from . import config
+
+
+class InvenioCollections(object):
+    """Invenio-Collections extension."""
+
+    def __init__(self, app=None):
+        """Extension initialization."""
+        if app:
+            self.init_app(app)
+
+    def init_app(self, app):
+        """Flask application initialization."""
+        self.init_config(app)
+        app.extensions['invenio-collections'] = self
+
+    def init_config(self, app):
+        """Initialize configuration."""
+        app.config.setdefault(
+            "COLLECTIONS_BASE_TEMPLATE",
+            app.config.get("BASE_TEMPLATE",
+                           "invenio_collections/base.html"))
+        for k in dir(config):
+            if k.startswith('COLLECTIONS_'):
+                app.config.setdefault(k, getattr(config, k))

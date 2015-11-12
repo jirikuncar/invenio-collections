@@ -22,7 +22,10 @@
 # granted to it by virtue of its status as an Intergovernmental Organization
 # or submit itself to any jurisdiction.
 
+"""Test dojson."""
+
 from dojson.contrib.marc21 import marc21
+
 
 def test_invenio_collection_marc21_tag():
     """Test invenio-collection marc21 tag."""

@@ -22,23 +22,28 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-include .dockerignore
-include .editorconfig
-include .tx/config
-include *.rst
-include *.sh
-include *.txt
-include LICENSE
-include babel.ini
-include pytest.ini
-recursive-include docs *.bat
-recursive-include docs *.py
-recursive-include docs *.rst
-recursive-include docs Makefile
-recursive-include examples *.py
-recursive-include invenio_collections *.html
-recursive-include tests *.py
+"""Utilities."""
 
-# added by check_manifest.py
-recursive-include invenio_collections *.po
-recursive-include invenio_collections *.pot
+from __future__ import absolute_import, print_function
+
+import six
+
+from flask import current_app
+from werkzeug.utils import import_string
+
+
+def parser():
+    """Return search query parser."""
+    query_parser = current_app.config['COLLECTIONS_QUERY_PARSER']
+    if isinstance(query_parser, six.string_types):
+        query_parser = import_string(query_parser)
+        return query_parser
+
+
+def query_walkers():
+    """Return query walker instances."""
+    return [
+        import_string(walker)() if isinstance(walker, six.string_types)
+        else walker() for walker in current_app.config[
+            'COLLECTIONS_QUERY_WALKERS']
+    ]
