@@ -1,8 +1,8 @@
 ============================
- Invenio-Collections v0.3.0
+ Invenio-Collections v0.1.0
 ============================
 
-Invenio-Collections v0.3.0 was released on October 9, 2015.
+Invenio-Collections v0.1.0 was released on TBD, 2015.
 
 About
 -----
@@ -11,22 +11,20 @@ Invenio module for organizing metadata into collections.
 
 *This is an experimental developer preview release.*
 
-Incompatible changes
---------------------
+What's new
+----------
 
-- Moves automatically loaded rule for MARC field 980 to
-  contrib/dojson.py and adds the corresponding entry point for it so
-  dojson can collect it.
+- Initial public release.
 
 Installation
 ------------
 
-   $ pip install invenio-collections==0.3.0
+   $ pip install invenio-collections==0.1.0
 
 Documentation
 -------------
 
-   http://invenio-collections.readthedocs.org/en/v0.3.0
+   http://pythonhosted.org/invenio-collections/
 
 Happy hacking and thanks for flying Invenio-Collections.
 

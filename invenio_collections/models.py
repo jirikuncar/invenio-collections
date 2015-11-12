@@ -22,42 +22,22 @@
 # General imports.
 import re
 from datetime import datetime
-
 from operator import itemgetter
-
 from warnings import warn
 
 from flask import g, url_for
-
-from intbitset import intbitset
-
-from invenio_ext.sqlalchemy import db
-from invenio_ext.sqlalchemy.utils import attribute_multi_dict_collection
+from invenio_formatter.registry import output_formats
+# Create your models here.
+from sqlalchemy.ext.associationproxy import association_proxy
+from sqlalchemy.ext.orderinglist import ordering_list
+from sqlalchemy.orm import validates
+from sqlalchemy.orm.collections import attribute_mapped_collection
+from sqlalchemy.schema import Index
+from werkzeug.utils import cached_property
 
 from invenio_base.globals import cfg
 from invenio_base.i18n import _, gettext_set_language
-
-from invenio_formatter.registry import output_formats
-
-# Create your models here.
-from invenio_search.models import Field, Fieldvalue
-
-from sqlalchemy.ext.associationproxy import association_proxy
-from sqlalchemy.ext.orderinglist import ordering_list
-
-from sqlalchemy.orm import validates
-from sqlalchemy.orm.collections import attribute_mapped_collection
-
-from sqlalchemy.schema import Index
-
-from werkzeug.utils import cached_property
-
-
-external_collection_mapper = attribute_multi_dict_collection(
-    creator=lambda k, v: CollectionExternalcollection(type=k,
-                                                      externalcollection=v),
-    key_attr=lambda obj: obj.type,
-    val_attr=lambda obj: obj.externalcollection)
+from invenio_db import db
 
 
 class Collection(db.Model):
@@ -111,23 +91,6 @@ class Collection(db.Model):
     def is_root(self):
         """Check whether the collection is a root collection."""
         return self.id == 1
-
-    @property
-    def nbrecs(self):
-        """Number of records in the collection."""
-        from .cache import get_collection_nbrecs
-        return get_collection_nbrecs(self.name)
-
-    @property
-    def reclist(self):
-        """Return hit set with record identifiers."""
-        return intbitset([])
-
-    @property
-    def is_hosted(self):
-        """Return True if collection is hosted elsewhere."""
-        return self.dbquery.startswith('hostedcollection:') if self.dbquery \
-            else False
 
     _names = db.relationship(lambda: Collectionname,
                              backref='collection',
@@ -266,51 +229,10 @@ class Collection(db.Model):
         creator=lambda son: CollectionCollection(id_son=son.id, type='v')
     )
 
-    _externalcollections = db.relationship(
-        lambda: CollectionExternalcollection,
-        cascade="all, delete, delete-orphan"
-    )
-
-    def _externalcollections_type(type_):
-        return association_proxy(
-            '_externalcollections_' + str(type_),
-            'externalcollection',
-            creator=lambda ext: CollectionExternalcollection(
-                externalcollection=ext, type=type_))
-
-    externalcollections_0 = _externalcollections_type(0)
-    externalcollections_1 = _externalcollections_type(1)
-    externalcollections_2 = _externalcollections_type(2)
-
-    externalcollections = db.relationship(
-        lambda: CollectionExternalcollection,
-        collection_class=external_collection_mapper,
-        cascade="all, delete, delete-orphan"
-    )
-
-    # Search options
-    def _make_field_fieldvalue(type_):
-        return db.relationship(
-            lambda: CollectionFieldFieldvalue,
-            primaryjoin=lambda: db.and_(
-                Collection.id == CollectionFieldFieldvalue.id_collection,
-                CollectionFieldFieldvalue.type == type_),
-            order_by=lambda: CollectionFieldFieldvalue.score)
-
-    _search_within = _make_field_fieldvalue('sew')
-    _search_options = _make_field_fieldvalue('seo')
-
     @property
-    # @cache.memoize(make_name=lambda fname: fname + '::' + g.ln)
     def search_within(self):
         """Collect search within options."""
-        default = [('', _('any field'))]
-        found = [(o.field.code, o.field.name_ln) for o in self._search_within]
-        if not found:
-            found = [(f.name.replace(' ', ''), f.name_ln)
-                     for f in Field.query.filter(Field.name.in_(
-                         cfg['CFG_WEBSEARCH_SEARCH_WITHIN'])).all()]
-        return default + sorted(found, key=itemgetter(1))
+        return [('', _('any field'))]
 
     @property
     # @cache.memoize(make_name=lambda fname: fname + '::' + g.ln)
@@ -329,7 +251,7 @@ class Collection(db.Model):
     @cached_property
     def ancestors_ids(self):
         """Get list of parent collection ids."""
-        output = intbitset([self.id])
+        output = set([self.id])
         for c in self.dads:
             ancestors = c.dad.ancestors_ids
             if self.id in ancestors:
@@ -340,7 +262,7 @@ class Collection(db.Model):
     @cached_property
     def descendants_ids(self):
         """Get list of child collection ids."""
-        output = intbitset([self.id])
+        output = set([self.id])
         for c in self.sons:
             descendants = c.son.descendants_ids
             if self.id in descendants:
@@ -377,19 +299,7 @@ class Collection(db.Model):
         Note: Noth sorting methods and ranking methods are now defined via
         the sorter.
         """
-        for coll_id in (self.id, 1):
-            methods = Collection_bsrMETHOD.query.filter_by(
-                id_collection=coll_id
-            ).order_by(
-                Collection_bsrMETHOD.score
-            ).options(
-                db.joinedload(Collection_bsrMETHOD.bsrMETHOD)
-            ).all()
-
-            if len(methods) > 0:
-                return map(lambda obj: obj.bsrMETHOD, methods)
-
-        return BsrMETHOD.query.order_by(BsrMETHOD.name).all()
+        return []
 
     def get_collectionbox_name(self, ln=None, box_type="r"):
         """Return collection-specific labelling subtrees.
@@ -453,7 +363,7 @@ class Collection(db.Model):
         else:
             crumb = dict(
                 text=self.name_ln,
-                url=url_for('collections.collection', name=self.name))
+                url=url_for('invenio_collections.collection', name=self.name))
 
         breadcrumbs.append(crumb)
         return breadcrumbs
@@ -626,56 +536,6 @@ class CollectionPortalbox(db.Model):
                                 order_by=score)
 
 
-class Externalcollection(db.Model):
-
-    """Represent a Externalcollection record."""
-
-    __tablename__ = 'externalcollection'
-    id = db.Column(db.MediumInteger(9, unsigned=True),
-                   primary_key=True)
-    name = db.Column(db.String(255), unique=True, nullable=False,
-                     server_default='')
-
-    @property
-    def engine(self):
-        """Engine."""
-        pass
-
-
-class CollectionExternalcollection(db.Model):
-
-    """Represent a CollectionExternalcollection record."""
-
-    __tablename__ = 'collection_externalcollection'
-    id_collection = db.Column(db.MediumInteger(9,
-                                               unsigned=True),
-                              db.ForeignKey(Collection.id), primary_key=True,
-                              server_default='0')
-    id_externalcollection = db.Column(db.MediumInteger(9,
-                                                       unsigned=True),
-                                      db.ForeignKey(Externalcollection.id),
-                                      primary_key=True,
-                                      server_default='0')
-    type = db.Column(db.TinyInteger(4, unsigned=True),
-                     server_default='0',
-                     nullable=False)
-
-    def _collection_type(type_):
-        return db.relationship(
-            Collection,
-            primaryjoin=lambda: db.and_(
-                CollectionExternalcollection.id_collection == Collection.id,
-                CollectionExternalcollection.type == type_),
-            backref='_externalcollections_{0}'.format(str(type_))
-        )
-
-    collection_0 = _collection_type(0)
-    collection_1 = _collection_type(1)
-    collection_2 = _collection_type(2)
-
-    externalcollection = db.relationship(Externalcollection)
-
-
 class CollectionFormat(db.Model):
 
     """Represent a CollectionFormat record."""
@@ -696,49 +556,6 @@ class CollectionFormat(db.Model):
     def format(self):
         """Return output format definition."""
         return output_formats[self.format_code]
-
-
-class CollectionFieldFieldvalue(db.Model):
-
-    """Represent a CollectionFieldFieldvalue record."""
-
-    __tablename__ = 'collection_field_fieldvalue'
-
-    id = db.Column(db.MediumInteger(9, unsigned=True), autoincrement=True,
-                   primary_key=True, nullable=False)
-    id_collection = db.Column(db.MediumInteger(9, unsigned=True),
-                              db.ForeignKey(Collection.id),
-                              nullable=False)
-    id_field = db.Column(db.MediumInteger(9, unsigned=True),
-                         db.ForeignKey(Field.id),
-                         nullable=False)
-    _id_fieldvalue = db.Column(db.MediumInteger(9, unsigned=True),
-                               db.ForeignKey(Fieldvalue.id),
-                               nullable=True, default=None,
-                               name="id_fieldvalue")
-    type = db.Column(db.Char(3), nullable=False,
-                     server_default='src')
-    score = db.Column(db.TinyInteger(4, unsigned=True), nullable=False,
-                      server_default='0')
-    score_fieldvalue = db.Column(db.TinyInteger(4, unsigned=True),
-                                 nullable=False, server_default='0')
-
-    collection = db.relationship(Collection, backref='field_fieldvalues',
-                                 order_by=score)
-    field = db.relationship(Field, backref='collection_fieldvalues',
-                            lazy='joined')
-    fieldvalue = db.relationship(Fieldvalue, backref='collection_fields',
-                                 lazy='joined')
-
-    @db.hybrid_property
-    def id_fieldvalue(self):
-        """Get id_fieldvalue."""
-        return self._id_fieldvalue
-
-    @id_fieldvalue.setter
-    def id_fieldvalue(self, value):
-        """Set id_fieldvalue."""
-        self._id_fieldvalue = value or None
 
 
 class FacetCollection(db.Model):
@@ -786,87 +603,6 @@ class FacetCollection(db.Model):
             cls.facet_name == facet_name).count())
 
 
-class BsrMETHOD(db.Model):
-
-    """Represent a BsrMETHOD record."""
-
-    __tablename__ = 'bsrMETHOD'
-
-    id = db.Column(db.MediumInteger(9, unsigned=True),
-                   primary_key=True, nullable=False)
-    name = db.Column(db.String(20), nullable=False, unique=True)
-    definition = db.Column(db.String(255), nullable=False)
-    washer = db.Column(db.String(255), nullable=False)
-
-    bucket_data = association_proxy('buckets', 'data')
-
-    def get_name_ln(self, ln=None):
-        """Return localized method name."""
-        try:
-            if ln is None:
-                ln = g.ln
-            return self.names.filter_by(ln=g.ln, type='ln').one().value
-        except Exception:
-            return self.name
-
-    @classmethod
-    def get_sorting_methods(cls):
-        """Return initialized method mapping."""
-        return dict(db.session.query(cls.name, cls.definition).all())
-
-    def get_cache(self):
-        """Return data to populate cache."""
-        if len(self.methoddata) < 1:
-            return {}
-        return dict(
-            data_dict_ordered=self.methoddata[0].ordered,
-            bucket_data=dict(self.bucket_data),
-        )
-
-    @classmethod
-    def timestamp_verifier(cls, name):
-        """Return last modification time for given sorting method."""
-        return datetime(1970, 1, 1)
-
-
-class BsrMETHODNAME(db.Model):
-
-    """Represent a BsrMETHODNAME record."""
-
-    __tablename__ = 'bsrMETHODNAME'
-
-    id_bsrMETHOD = db.Column(db.MediumInteger(9, unsigned=True),
-                             db.ForeignKey(BsrMETHOD.id),
-                             primary_key=True, nullable=False,
-                             autoincrement=False)
-    ln = db.Column(db.String(5), primary_key=True, nullable=False)
-    type = db.Column(db.String(3), primary_key=True, nullable=False)
-    value = db.Column(db.String(255), nullable=False)
-    method = db.relationship(BsrMETHOD, backref=db.backref('names',
-                                                           lazy='dynamic'))
-
-
-class Collection_bsrMETHOD(db.Model):
-
-    """Represent a Collection_bsrMETHOD record."""
-
-    __tablename__ = 'collection_bsrMETHOD'
-
-    id_collection = db.Column(db.MediumInteger(9, unsigned=True),
-                              db.ForeignKey(Collection.id),
-                              primary_key=True, nullable=False,
-                              autoincrement=False)
-    id_bsrMETHOD = db.Column(db.MediumInteger(9, unsigned=True),
-                             db.ForeignKey(BsrMETHOD.id),
-                             primary_key=True, nullable=False,
-                             autoincrement=False)
-    score = db.Column(db.TinyInteger(4, unsigned=True), server_default='0',
-                      nullable=False)
-
-    collection = db.relationship(Collection, backref='bsrMETHODs')
-    bsrMETHOD = db.relationship(BsrMETHOD, backref='collections')
-
-
 __all__ = (
     'Collection',
     'Collectionname',
@@ -876,12 +612,6 @@ __all__ = (
     'CollectionExample',
     'Portalbox',
     'CollectionPortalbox',
-    'Externalcollection',
-    'CollectionExternalcollection',
     'CollectionFormat',
-    'CollectionFieldFieldvalue',
     'FacetCollection',
-    'BsrMETHOD',
-    'BsrMETHODNAME',
-    'Collection_bsrMETHOD',
 )

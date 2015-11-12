@@ -22,12 +22,10 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-"""Invenio module for organizing metadata into collections."""
 
-from __future__ import absolute_import, print_function
-
-from .ext import InvenioCollections
-from .receivers import get_record_collections
-from .version import __version__
-
-__all__ = ('__version__', 'InvenioCollections', 'get_record_collections')
+pep257 invenio_collections && \
+isort -rc -c -df **/*.py && \
+check-manifest --ignore ".travis-*" && \
+sphinx-build -qnNW docs docs/_build/html && \
+python setup.py test && \
+sphinx-build -qnNW -b doctest docs docs/_build/doctest

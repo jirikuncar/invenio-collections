@@ -22,12 +22,41 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-"""Invenio module for organizing metadata into collections."""
+
+"""Module tests."""
 
 from __future__ import absolute_import, print_function
 
-from .ext import InvenioCollections
-from .receivers import get_record_collections
-from .version import __version__
+from flask import Flask
+from flask_babelex import Babel
 
-__all__ = ('__version__', 'InvenioCollections', 'get_record_collections')
+from invenio_collections import InvenioCollections
+
+
+def test_version():
+    """Test version import."""
+    from invenio_collections import __version__
+    assert __version__
+
+
+def test_init():
+    """Test extension initialization."""
+    app = Flask('testapp')
+    ext = InvenioCollections(app)
+    assert 'invenio-collections' in app.extensions
+
+    app = Flask('testapp')
+    ext = InvenioCollections()
+    assert 'invenio-collections' not in app.extensions
+    ext.init_app(app)
+    assert 'invenio-collections' in app.extensions
+
+
+def test_view(app):
+    """Test view."""
+    Babel(app)
+    InvenioCollections(app)
+    with app.test_client() as client:
+        res = client.get("/")
+        assert res.status_code == 200
+        assert 'Welcome to Invenio-Collections' in str(res.data)
