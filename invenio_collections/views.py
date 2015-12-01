@@ -77,10 +77,9 @@ def collection(name=None):
     # TODO add breadcrumbs
     # breadcrumbs = current_breadcrumbs + collection.breadcrumbs(ln=g.ln)[1:]
 
-    return render_template(
+    return render_template([
         'invenio_collections/collection_{0}.html'.format(collection.id),
         # TODO support sugified templated name
         # 'invenio_collections/collection_{0}.html'.format(slugify(name, '_')),
         "invenio_collections/index.html",
-        collection=collection,
-    )
+    ], collection=collection)

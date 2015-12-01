@@ -24,17 +24,23 @@
 
 """Test dojson."""
 
-from dojson.contrib.marc21 import marc21
+import pkg_resources
 
+try:
+    pkg_resources.get_distribution('dojson')
+except pkg_resources.DistributionNotFound:
+    pass
+else:
+    from dojson.contrib.marc21 import marc21
 
-def test_invenio_collection_marc21_tag():
-    """Test invenio-collection marc21 tag."""
-    data = marc21.do({'980__': {'a': 'colla', 'b': 'collb'}})
+    def test_invenio_collection_marc21_tag():
+        """Test invenio-collection marc21 tag."""
+        data = marc21.do({'980__': {'a': 'colla', 'b': 'collb'}})
 
-    assert data['collections'][0]['primary'] == 'colla'
-    assert data['collections'][0]['secondary'] == 'collb'
+        assert data['collections'][0]['primary'] == 'colla'
+        assert data['collections'][0]['secondary'] == 'collb'
 
-    data = marc21.do({'980__': [{'a': 'colla'}, {'a': 'collaa'}]})
+        data = marc21.do({'980__': [{'a': 'colla'}, {'a': 'collaa'}]})
 
-    assert data['collections'][0]['primary'] == 'colla'
-    assert data['collections'][1]['primary'] == 'collaa'
+        assert data['collections'][0]['primary'] == 'colla'
+        assert data['collections'][1]['primary'] == 'collaa'

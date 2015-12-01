@@ -36,7 +36,6 @@ history = open('CHANGES.rst').read()
 tests_require = [
     'check-manifest>=0.25',
     'coverage>=4.0',
-    'dojson>=0.4.0',
     'isort>=4.2.2',
     'pep257>=0.7.0',
     'pytest-cache>=1.0',
@@ -46,6 +45,7 @@ tests_require = [
 ]
 
 extras_require = {
+    ':python_version=="2.7"': ['dojson>=0.4.0'],
     'docs': [
         "Sphinx>=1.3",
     ],
@@ -53,7 +53,9 @@ extras_require = {
 }
 
 extras_require['all'] = []
-for reqs in extras_require.values():
+for name, reqs in extras_require.items():
+    if name[0] == ':':
+        continue
     extras_require['all'].extend(reqs)
 
 setup_requires = [

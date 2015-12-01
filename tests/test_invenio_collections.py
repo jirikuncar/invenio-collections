@@ -27,10 +27,13 @@
 
 from __future__ import absolute_import, print_function
 
-from flask import Flask
+from flask import Flask, url_for
 from flask_babelex import Babel
+from invenio_db import db
 
 from invenio_collections import InvenioCollections
+from invenio_collections.models import Collection
+from invenio_collections.views import blueprint
 
 
 def test_version():
@@ -56,6 +59,33 @@ def test_view(app):
     """Test view."""
     Babel(app)
     InvenioCollections(app)
+    app.config['SERVER_NAME'] = 'localhost:5000'
+    app.register_blueprint(blueprint)
+
+    with app.app_context():
+        index_url = url_for('invenio_collections.index')
+        view_url = url_for('invenio_collections.collection')
+        view_test_url = url_for('invenio_collections.collection', name='Test')
+
     with app.test_client() as client:
-        res = client.get("/")
+        res = client.get(index_url)
         assert res.status_code == 404
+
+    with app.app_context():
+        collection = Collection(name='Test')
+        db.session.add(collection)
+        db.session.commit()
+
+        assert 1 == collection.id
+        assert 'Collection <id: 1, name: Test, dbquery: None>' == repr(
+            collection)
+
+    with app.test_client() as client:
+        res = client.get(index_url)
+        assert res.status_code == 200
+
+        res = client.get(view_url)
+        assert res.status_code == 302
+
+        res = client.get(view_test_url)
+        assert res.status_code == 200
