@@ -22,12 +22,15 @@
 # waive the privileges and immunities granted to it by virtue of its status
 # as an Intergovernmental Organization or submit itself to any jurisdiction.
 
-"""Invenio module for organizing metadata into collections."""
+"""Helper proxy to the state object."""
 
 from __future__ import absolute_import, print_function
 
-from .ext import InvenioCollections
-from .proxies import current_collections
-from .version import __version__
+from flask import current_app
+from werkzeug.local import LocalProxy
 
-__all__ = ('__version__', 'InvenioCollections', 'current_collections')
+
+current_collections = LocalProxy(
+    lambda: current_app.extensions['invenio-collections']
+)
+"""Helper proxy to access state object."""

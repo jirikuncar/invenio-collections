@@ -30,8 +30,9 @@ import os
 
 from flask import Flask
 from flask_cli import FlaskCLI
-from invenio_db import InvenioDB, db
+from werkzeug.contrib.cache import SimpleCache
 
+from invenio_db import InvenioDB, db
 from invenio_records import InvenioRecords
 from invenio_records.api import Record
 from invenio_collections import InvenioCollections
@@ -50,7 +51,9 @@ def test_collection_tree_matcher(request):
     FlaskCLI(app)
     InvenioDB(app)
     InvenioRecords(app)
-    InvenioCollections(app)
+
+    cache = SimpleCache()
+    InvenioCollections(app, cache=cache)
 
     with app.app_context():
         db.create_all()

@@ -21,7 +21,6 @@
 
 import pypeg2
 
-from invenio_query_parser.walkers.pypeg_to_ast import PypegConverter
 from invenio_query_parser.walkers.match_unit import MatchUnit
 
 from .utils import parser, query_walkers

@@ -19,16 +19,18 @@
 
 """Record field function."""
 
-from invenio_records.signals import (
-    before_record_insert,
-    before_record_update,
-)
 from six import iteritems
 
-from .query import Query
-from .models import Collection
+from flask import current_app
 
-COLLECTIONS_DELETED_RECORDS = '{dbquery} AND NOT collection:"DELETED"'
+from .models import Collection
+from .proxies import current_collections
+from .query import Query
+
+try:
+    from functools import lru_cache
+except ImportError:
+    from functools32 import lru_cache
 
 
 def _ancestors(collection):
@@ -36,23 +38,25 @@ def _ancestors(collection):
     for index, c in enumerate(collection.path_to_root()):
         if index > 0 and c.dbquery is not None:
             raise StopIteration
-        yield c
+        yield c.name
     raise StopIteration
 
 
-def _queries():
+@lru_cache(maxsize=1000)
+def _build_query(dbquery):
+    """Build ``Query`` object for given collection query."""
+    return Query(dbquery)
+
+
+def _build_cache():
     """Preprocess collection queries."""
-    return dict(
-        (collection.name, dict(
-            query=Query(COLLECTIONS_DELETED_RECORDS.format(
-                dbquery=collection.dbquery)
-            ),
-            ancestors=set(c.name for c in _ancestors(collection))
-        ))
-        for collection in Collection.query.filter(
-            Collection.dbquery.isnot(None),
-        ).all()
-    )
+    query = current_app.config['COLLECTIONS_DELETED_RECORDS']
+    for collection in Collection.query.filter(
+            Collection.dbquery.isnot(None)).all():
+        yield collection.name, dict(
+            query=query.format(dbquery=collection.dbquery),
+            ancestors=set(_ancestors(collection)),
+        )
 
 
 def get_record_collections(record):
@@ -61,16 +65,19 @@ def get_record_collections(record):
     :record: Record instance
     :return: list of collection names
     """
+    collections = current_collections.collections
+    if collections is None:
+        collections = current_collections.collections = dict(_build_cache())
+
     output = set()
-    for name, data in iteritems(_queries()):
-        if data['query'].match(record):
+
+    for name, data in iteritems(collections):
+        if _build_query(data['query']).match(record):
             output.add(name)
             output |= data['ancestors']
     return list(output)
 
 
-@before_record_insert.connect
-@before_record_update.connect
 def update_collections(sender, *args, **kwargs):
     """Update the list of collections to which the record belongs."""
     sender['_collections'] = get_record_collections(sender)
